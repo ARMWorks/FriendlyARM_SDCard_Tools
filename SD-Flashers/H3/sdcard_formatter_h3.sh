@@ -1,7 +1,7 @@
 #!/bin/sh
 #######################################################################
-#    sdcard_formatter_h3.sh Format SD Card for Mini210 SuperBoot
-#    Copyright (C) 2014 Jason Pruitt
+#    sdcard_formatter_h3.sh Format SD Card for H3 based boards
+#    Copyright (C) 2017 Jason Pruitt
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
