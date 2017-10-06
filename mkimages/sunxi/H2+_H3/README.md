@@ -3,15 +3,22 @@ Creates the .img file to flash to the SD Card.
 
 ## Usage ##
 
+* Create your.img and put u-boot in it.
+
     sudo ./img_builder.sh your.img /path/to/u-boot.bin
+
+* Mount boot/ and rootfs/ partitions in the newly created mounted\_your.img/ directory. You can now copy all the necessary files into thier respective directories.
+
     sudo ./img_mount.sh your.img
 
-This will mount boot/ and rootfs/ partitions in mounted\_your.img/ directory. You can now copy all the necessary files into thier respective directories.
+* Unmount boot/ and rootfs/ directories and remove mounted\_your.img/.
 
     sudo ./img_umount.sh your.img
+
+* Flash your.img to the SD Card.
+
     sudo dd if=your.img of=/dev/sd?
 
-This unmounts the image then flashes it to your SD Card, make sure you get the right device name of your SD Card using dmesg after pluging it in.
 
 ## Issues ##
 
