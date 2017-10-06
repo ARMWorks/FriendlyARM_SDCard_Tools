@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 #######################################################################
-#    sdcard_formatter_h3.sh Format SD Card for Mini210 SuperBoot
+#    img_mount.sh mount image file with boot/rootfs partitions.
 #    Copyright (C) 2017 Jason Pruitt
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -16,44 +16,43 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ##########################################################################
-# Version 0.1
 
-SDDEV=$1
-PART1="1"
-PART2="2"
-UBOOT=$2
+IMG=$1
+BS=512
+
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as sudo user."
+  exit 1
+fi
 
 help(){
 echo "Usage:";
-echo "	sdcard_formatter_h3.sh /dev/sd[x] /path/to/u-boot.bin";
-echo "	Formats SD Card, and flashes u-boot.";
+echo "  sudo img_mount.sh /path/to/file.img";
+echo "    mount partitions in file.img";
 exit 0;
 }
 
 if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-	help
+    help
 fi
 
-if ! [ -a $UBOOT ]; then
-	echo "File does not exist."
-	exit 1;
+if ! [ -a $IMG ]; then
+    echo "img file does not exist."
+    exit 1;
 fi
 
-sudo /sbin/fdisk $SDDEV > /dev/null <<EOF
-o
-n
-p
-1
-49152
-131071
-n
-p
-2
-131072
+PART1START=$(sudo fdisk -l $IMG | grep "${IMG}1" | sed -e 's/  */ /g' | cut -f2 -d " ")
+PART2START=$(sudo fdisk -l $IMG | grep "${IMG}2" | sed -e 's/  */ /g' | cut -f2 -d " ")
 
-w
-EOF
+LOOP0=$(losetup -f)
+losetup -o $(($PART1START*$BS)) $LOOP0 $IMG &
+mkdir -p mounted_$IMG/boot
+mount -o loop $LOOP0 mounted_$IMG/boot
 
-sudo dd if=$UBOOT of=$SDDEV bs=1024 seek=8 > /dev/null 2>&1
-sudo /sbin/mkfs.fat -n "boot" $SDDEV$PART1 > /dev/null 2>&1
-sudo /sbin/mkfs.ext4 -L "rootfs" $SDDEV$PART2 > /dev/null 2>&1
+LOOP1=$(losetup -f)
+losetup -o $((($PART2START)*$BS)) $LOOP1 $IMG &
+mkdir -p mounted_$IMG/rootfs
+mount -o loop $LOOP1 mounted_$IMG/rootfs
+
+exit 0
+

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 #######################################################################
-#    sdcard_formatter_h3.sh Format SD Card for Mini210 SuperBoot
+#    img_builder.sh Create image file with boot/rootfs partitions and uboot.
 #    Copyright (C) 2017 Jason Pruitt
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -16,44 +16,70 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ##########################################################################
-# Version 0.1
 
-SDDEV=$1
-PART1="1"
-PART2="2"
+IMGSIZE=500000
+IMG=$1
 UBOOT=$2
+PART1START=49152
+PART1END=131071
+BS=512
+
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as sudo user."
+  exit 1
+fi
 
 help(){
 echo "Usage:";
-echo "	sdcard_formatter_h3.sh /dev/sd[x] /path/to/u-boot.bin";
-echo "	Formats SD Card, and flashes u-boot.";
+echo "  sudo img_builder.sh /path/to/file.img /path/to/u-boot.bin";
+echo "    Format img file with paritions and u-boot.";
 exit 0;
 }
 
 if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-	help
+    help
 fi
 
 if ! [ -a $UBOOT ]; then
-	echo "File does not exist."
-	exit 1;
+    echo "u-boot file does not exist."
+    exit 1;
 fi
 
-sudo /sbin/fdisk $SDDEV > /dev/null <<EOF
+if ! [ -a $IMG ]; then
+    dd if=/dev/zero of=$IMG bs=512 count=$IMGSIZE > /dev/null 2>&1
+fi
+
+sudo /sbin/fdisk $IMG > /dev/null <<EOF
 o
 n
 p
 1
-49152
-131071
+$PART1START
+$PART1END
 n
 p
 2
-131072
+$(($PART1END+1))
+
 
 w
 EOF
 
-sudo dd if=$UBOOT of=$SDDEV bs=1024 seek=8 > /dev/null 2>&1
-sudo /sbin/mkfs.fat -n "boot" $SDDEV$PART1 > /dev/null 2>&1
-sudo /sbin/mkfs.ext4 -L "rootfs" $SDDEV$PART2 > /dev/null 2>&1
+dd if=$UBOOT of=$IMG bs=1024 seek=8 conv=notrunc > /dev/null 2>&1
+
+LOOP0=$(losetup -f)
+losetup -o $(($PART1START*$BS)) $LOOP0 $IMG > /dev/null &
+sleep 1
+mkfs.vfat -n "boot" $LOOP0 > /dev/null 
+losetup -d $LOOP0 > /dev/null 
+
+LOOP1=$(losetup -f)
+losetup -o $((($PART1END+1)*$BS)) $LOOP1 $IMG > /dev/null  &
+sleep 1
+/sbin/mkfs.ext4 -L "rootfs" $LOOP1 > /dev/null 
+losetup -d $LOOP1 > /dev/null 
+
+exit 0;
+
+
+
