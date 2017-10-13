@@ -35,7 +35,7 @@ if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     help
 fi
 
-if ! [ -a $IMG ]; then
+if ! [ -e $IMG ]; then
     echo "img file does not exist."
     exit 1;
 fi

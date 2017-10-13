@@ -3,9 +3,13 @@ Creates the .img file to flash to the SD Card.
 
 ## Usage ##
 
-* Create your.img and put u-boot in it.
+* Create your.img and put u-boot in it. For H2+ and H3.
 
     sudo ./img_builder.sh your.img /path/to/u-boot.bin
+
+For H5:
+    
+    sudo img_builder.sh /path/to/file.img /path/to/sunxi-spl.bin /path/to/u-boot.itb
 
 * Mount boot/ and rootfs/ partitions in the newly created mounted\_your.img/ directory. You can now copy all the necessary files into thier respective directories.
 

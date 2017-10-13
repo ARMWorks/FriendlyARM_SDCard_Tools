@@ -1,6 +1,6 @@
 #!/bin/bash
 #######################################################################
-#    img_mount.sh mount image file with boot/rootfs partitions.
+#    img_builder.sh Create image file with boot/rootfs partitions and uboot.
 #    Copyright (C) 2017 Jason Pruitt
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,12 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ##########################################################################
 
+IMGSIZE=500000
 IMG=$1
+SPL=$2
+UBOOT=$3
+PART1START=49152
+PART1END=131071
 BS=512
 
 if [ "$EUID" -ne 0 ]
@@ -27,8 +32,8 @@ fi
 
 help(){
 echo "Usage:";
-echo "  sudo img_mount.sh /path/to/file.img";
-echo "    mount partitions in file.img";
+echo "  sudo img_builder.sh /path/to/file.img /path/to/sunxi-spl.bin /path/to/u-boot.itb";
+echo "    Format img file with paritions and u-boot.";
 exit 0;
 }
 
@@ -36,23 +41,54 @@ if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     help
 fi
 
-if ! [ -a $IMG ]; then
-    echo "img file does not exist."
+echo $SPL
+if ! [ -e "$SPL" ]; then
+    echo "u-boot spl file does not exist."
     exit 1;
 fi
 
-PART1START=$(sudo fdisk -l $IMG | grep "${IMG}1" | sed -e 's/  */ /g' | cut -f2 -d " ")
-PART2START=$(sudo fdisk -l $IMG | grep "${IMG}2" | sed -e 's/  */ /g' | cut -f2 -d " ")
+echo $UBOOT
+if ! [ -e "$UBOOT" ]; then
+    echo "u-boot file does not exist."
+    exit 1;
+fi
+
+if ! [ -e "$IMG" ]; then
+    dd if=/dev/zero of=$IMG bs=1024 count=$IMGSIZE > /dev/null 2>&1
+fi
+
+sudo /sbin/fdisk $IMG > /dev/null <<EOF
+o
+n
+p
+1
+$PART1START
+$PART1END
+n
+p
+2
+$(($PART1END+1))
+
+
+w
+EOF
+
+dd if=$SPL of=$IMG bs=1024 seek=8 conv=notrunc > /dev/null 2>&1
+dd if=$UBOOT of=$IMG bs=1024 seek=40 conv=notrunc > /dev/null 2>&1
 
 LOOP0=$(losetup -f)
-losetup -o $(($PART1START*$BS)) $LOOP0 $IMG &
-mkdir -p mounted_$IMG/boot
-mount -o loop $LOOP0 mounted_$IMG/boot
+losetup -o $(($PART1START*$BS)) $LOOP0 $IMG > /dev/null &
+sleep 1
+mkfs.vfat -n "boot" $LOOP0 > /dev/null 
+losetup -d $LOOP0 > /dev/null 
 
 LOOP1=$(losetup -f)
-losetup -o $((($PART2START)*$BS)) $LOOP1 $IMG &
-mkdir -p mounted_$IMG/rootfs
-mount -o loop $LOOP1 mounted_$IMG/rootfs
+losetup -o $((($PART1END+1)*$BS)) $LOOP1 $IMG > /dev/null  &
+sleep 1
+/sbin/mkfs.ext4 -L "rootfs" $LOOP1 > /dev/null 
+losetup -d $LOOP1 > /dev/null 
 
-exit 0
+exit 0;
+
+
 
