@@ -20,6 +20,11 @@
 IMG=$1
 BS=512
 
+safe_exec(){
+    #echo "Running: ${@}"
+    eval $@ || exit 1
+}
+
 if [ "$EUID" -ne 0 ]
   then echo "Please run as sudo user."
   exit 1
@@ -29,6 +34,7 @@ help(){
 echo "Usage:";
 echo "  sudo img_mount.sh /path/to/file.img";
 echo "    mount partitions in file.img";
+echo "    Warning, unintentional damage may occur to image data.";
 exit 0;
 }
 
@@ -41,18 +47,25 @@ if ! [ -e $IMG ]; then
     exit 1;
 fi
 
-PART1START=$(sudo fdisk -l $IMG | grep "${IMG}1" | sed -e 's/  */ /g' | cut -f2 -d " ")
-PART2START=$(sudo fdisk -l $IMG | grep "${IMG}2" | sed -e 's/  */ /g' | cut -f2 -d " ")
+for i in $(fdisk -l $IMG | grep "${IMG}[0-9]" | sed -e 's/\*//g' | sed -e 's/  */ /g' | cut -f2 -d " ")
+do
+    LOOP=$(losetup -f)
 
-LOOP0=$(losetup -f)
-losetup -o $(($PART1START*$BS)) $LOOP0 $IMG &
-mkdir -p mounted_$IMG/boot
-mount -o loop $LOOP0 mounted_$IMG/boot
+    # Requires & or won't unmount correctly for some reason.
+    safe_exec losetup -o $(($i*$BS)) $LOOP $IMG &
 
-LOOP1=$(losetup -f)
-losetup -o $((($PART2START)*$BS)) $LOOP1 $IMG &
-mkdir -p mounted_$IMG/rootfs
-mount -o loop $LOOP1 mounted_$IMG/rootfs
+    # If labels not being found, increase time.
+    sleep 2
 
+    MOUNTDIR=$(file -s $LOOP | grep -Po "(label:|volume name) \" *\K([a-zA-Z0-9_\-]*)(?=[ ]*\")")
+
+    if [ $MOUNTDIR == "" ]; then
+        MOUNTDIR=$i
+    fi
+
+    safe_exec mkdir -p mounted_$IMG/$MOUNTDIR
+    safe_exec mount -o loop $LOOP mounted_$IMG/$MOUNTDIR
+done
 exit 0
+
 

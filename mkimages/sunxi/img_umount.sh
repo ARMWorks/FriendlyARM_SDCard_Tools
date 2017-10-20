@@ -19,6 +19,11 @@
 
 IMG=$1
 
+safe_exec(){
+    #echo "Running: ${@}"
+    eval "$@" || exit 1
+}
+
 if [ "$EUID" -ne 0 ]
   then echo "Please run as sudo user."
   exit 1
@@ -28,6 +33,7 @@ help(){
 echo "Usage:";
 echo "  sudo img_umount.sh /path/to/file.img";
 echo "    umount partitions in file.img.";
+echo "    Warning, unintentional damage may occur to image data.";
 exit 0;
 }
 
@@ -40,11 +46,22 @@ if ! [ -e $IMG ]; then
     exit 1;
 fi
 
-for i in $(sudo losetup -a | grep $IMG | cut -f1 -d ":")
-do
-    sudo umount `mount | grep $i | cut -f3 -d " "`
-    sudo losetup -d $i;
-done
-sudo rm -rf mounted_$IMG
+FOUNDLOOPS=false
+if [ -d "mounted_$IMG" ]; then
+    for i in $(losetup -a | grep $IMG | cut -f1 -d ":")
+    do
+        safe_exec umount $(mount | grep $i | cut -f3 -d " ")
+        safe_exec losetup -d $i;
+        FOUNDLOOPS=true
+    done
+
+    if [ $FOUNDLOOPS ]; then
+        safe_exec rm -rf mounted_$IMG
+    fi
+else
+    echo "mounted_$IMG does not exist."
+    exit 1
+fi
+
 exit 0
 
