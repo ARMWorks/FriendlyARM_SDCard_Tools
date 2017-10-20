@@ -24,9 +24,9 @@ safe_exec(){
     eval "$@" || exit 1
 }
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as sudo user."
-  exit 1
+if [ $(id -u) -ne 0 ]; then
+    echo "Please run as sudo user."
+    exit 1
 fi
 
 help(){
@@ -50,7 +50,12 @@ FOUNDLOOPS=false
 if [ -d "mounted_$IMG" ]; then
     for i in $(losetup -a | grep $IMG | cut -f1 -d ":")
     do
-        safe_exec umount $(mount | grep $i | cut -f3 -d " ")
+        MOUNTPOINT=$(mount | grep $i | cut -f3 -d " ")
+ 
+        if [ $MOUNTPOINT != "" ]; then
+            safe_exec umount $MOUNTPOINT
+        fi
+ 
         safe_exec losetup -d $i;
         FOUNDLOOPS=true
     done

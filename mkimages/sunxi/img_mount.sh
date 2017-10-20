@@ -25,9 +25,9 @@ safe_exec(){
     eval $@ || exit 1
 }
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as sudo user."
-  exit 1
+if [ $(id -u) -ne 0 ]; then
+    echo "Please run as sudo user."
+    exit 1
 fi
 
 help(){

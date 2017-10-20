@@ -24,9 +24,14 @@ PART1START=49152
 PART1END=131071
 BS=512
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as sudo user."
-  exit 1
+safe_exec(){
+    #echo "Running: ${@}"
+    eval "$@" || exit 1
+}
+
+if [ $(id -u) -ne 0 ]; then
+    echo "Please run as sudo user."
+    exit 1
 fi
 
 help(){
@@ -39,17 +44,17 @@ exit 0;
 if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     help
 fi
-echo $UBOOT
+
 if ! [ -e "$UBOOT" ]; then
     echo "u-boot file does not exist."
     exit 1;
 fi
 
 if ! [ -e "$IMG" ]; then
-    dd if=/dev/zero of=$IMG bs=1024 count=$IMGSIZE > /dev/null 2>&1
+    safe_exec dd if=/dev/zero of=$IMG bs=1024 count=$IMGSIZE > /dev/null 2>&1
 fi
 
-sudo /sbin/fdisk $IMG > /dev/null <<EOF
+safe_exec /sbin/fdisk $IMG > /dev/null <<EOF
 o
 n
 p
@@ -65,19 +70,19 @@ $(($PART1END+1))
 w
 EOF
 
-dd if=$UBOOT of=$IMG bs=1024 seek=8 conv=notrunc > /dev/null 2>&1
+safe_exec dd if=$UBOOT of=$IMG bs=1024 seek=8 conv=notrunc > /dev/null 2>&1
 
 LOOP0=$(losetup -f)
-losetup -o $(($PART1START*$BS)) $LOOP0 $IMG > /dev/null &
+safe_exec losetup -o $(($PART1START*$BS)) $LOOP0 $IMG > /dev/null &
 sleep 1
-mkfs.vfat -n "boot" $LOOP0 > /dev/null 
-losetup -d $LOOP0 > /dev/null 
+safe_exec mkfs.vfat -n "boot" $LOOP0 > /dev/null 
+safe_exec losetup -d $LOOP0 > /dev/null 
 
 LOOP1=$(losetup -f)
-losetup -o $((($PART1END+1)*$BS)) $LOOP1 $IMG > /dev/null  &
+safe_exec losetup -o $((($PART1END+1)*$BS)) $LOOP1 $IMG > /dev/null  &
 sleep 1
-/sbin/mkfs.ext4 -L "rootfs" $LOOP1 > /dev/null 
-losetup -d $LOOP1 > /dev/null 
+safe_exec /sbin/mkfs.ext4 -L "rootfs" $LOOP1 > /dev/null 
+safe_exec losetup -d $LOOP1 > /dev/null 
 
 exit 0;
 
