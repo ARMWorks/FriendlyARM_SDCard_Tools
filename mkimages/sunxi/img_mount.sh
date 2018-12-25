@@ -21,7 +21,7 @@ IMG=$1
 BS=512
 
 safe_exec(){
-    #echo "Running: ${@}"
+    echo "Running: ${@}"
     eval $@ || exit 1
 }
 
