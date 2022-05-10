@@ -1,7 +1,7 @@
 # FriendlyARM_SDCard_Tools
 FriendlyARM tools for making SD Cards and creating installable file system images.
 
-## Troubleshotting
+## Troubleshooting
 
 * **command not found** When running mkimage* binaries:
 
