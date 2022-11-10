@@ -28,7 +28,7 @@ echo "	Formats SD Card, makes FAT32 partition, and copies Superboot to beginning
 exit 0;
 }
 
-if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
 	help
 fi
 
